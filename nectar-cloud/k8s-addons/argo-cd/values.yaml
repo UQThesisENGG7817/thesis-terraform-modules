@@ -1,0 +1,660 @@
+## Argo CD configuration
+## Ref: https://github.com/argoproj/argo-cd
+##
+
+# -- Provide a name in place of `argocd`
+nameOverride: "argo-cd"
+
+## Argo Configs
+configs:
+  # General Argo CD configuration
+  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cm.yaml
+  cm:
+    # Config for kustomize with Helm
+    kustomize.buildOptions: --enable-helm
+
+    # Enable status badge
+    statusbadge.enabled: true
+
+    # -- User for Argo Image Updater
+    accounts.image-updater: apiKey
+
+    # -- Enable exec feature in Argo UI
+    ## Ref: https://argo-cd.readthedocs.io/en/latest/operator-manual/rbac/#exec-resource
+    exec.enabled: true
+
+    # Dex configuration
+    dex.config: |
+      connectors:
+        - type: github
+          id: github
+          name: GitHub
+          config:
+            clientID: $github.clientID
+            clientSecret: $github.clientSecret
+            orgs:
+            - name: $github.org
+
+  # Argo CD configuration parameters
+  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cmd-params-cm.yaml
+  params:
+    ## Server properties
+    # -- Run server without TLS
+    server.insecure: true
+
+  # Argo CD RBAC policy configuration
+  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
+  rbac:
+    # -- The name of the default role which Argo CD will falls back to, when authorizing API requests (optional).
+    # If omitted or empty, users may be still be able to login, but will see no apps, projects, etc...
+    policy.default: 'role:readonly'
+
+    # -- File containing user-defined policies and role definitions.
+    # @default -- `''` (See [values.yaml])
+    # policy.csv: ''
+    # Policy rules are in the form:
+    #  p, subject, resource, action, object, effect
+    # Role definitions and bindings are in the form:
+    #  g, subject, inherited-subject
+    policy.csv: |
+      p, role:org-admin, *, *, *, allow
+      g, uq-thesis:php1301, role:org-admin
+
+      p, role:org-dev, applications, delete, */*, allow
+      p, role:org-dev, applications, get, */*, allow
+      p, role:org-dev, applications, sync, */*, allow
+      p, role:org-dev, applications, action/*/*/restart, */*, allow
+      p, role:org-dev, logs, get, */*, allow
+      # p, role:org-dev, exec, create, */*, allow
+
+      p, role:image-updater, applications, get, */*, allow
+      p, role:image-updater, applications, update, */*, allow
+      g, image-updater, role:image-updater
+
+    # -- OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
+    # The scope value can be a string, or a list of strings.
+    scopes: "[groups]"
+
+  # -- Repository credentials to be used as Templates for other repos
+  ## Creates a secret for each key/value specified below to create repository credentials
+  credentialTemplates:
+    https-creds:
+      url: https://github.com/UQThesisENGG7817
+      password: ""
+      username: ""
+
+  # Argo CD sensitive data
+  # Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets
+  secret:
+    # -- add additional secrets to be added to argocd-secret
+    ## Custom secrets. Useful for injecting SSO secrets into environment variables.
+    ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets
+    ## Note that all values must be non-empty.
+    extra:
+      github.org: UQThesisENGG7817
+
+## Application controller
+controller:
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+
+  # -- [Tolerations] for use with node taints
+  tolerations: 
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+
+## Dex
+dex:
+  # -- Environment variables to pass to the Dex server
+  env:
+  - name: ARGO_WORKFLOWS_SSO_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        key: github.clientSecret
+        name: argocd-secret
+
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+
+  # -- [Tolerations] for use with node taints
+  tolerations:
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+  # -- Assign custom [affinity] rules to the deployment
+
+## Redis
+redis:
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+
+  # -- [Tolerations] for use with node taints
+  tolerations:
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+
+## Server
+server:
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+
+  # -- [Tolerations] for use with node taints
+  tolerations:
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+
+  ## Argo UI extensions
+  ## This function in tech preview stage, do expect unstability or breaking changes in newer versions.
+  ## Ref: https://github.com/argoproj-labs/argocd-extensions
+  extensions:
+    # -- Enable support for Argo UI extensions
+    enabled: true
+
+## Repo Server
+repoServer:
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+  
+  # -- [Tolerations] for use with node taints
+  tolerations:
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+
+## ApplicationSet controller
+applicationSet:
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+
+  # -- [Tolerations] for use with node taints
+  tolerations:
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+
+## Notifications controller
+notifications:
+  # -- Enable notifications controller
+  enabled: true
+
+  # -- Additional container environment variables
+  extraEnv:
+    - name: TZ
+      value: Asia/Ho_Chi_Minh
+
+  # -- Notifications controller log level. One of: `debug`, `info`, `warn`, `error`
+  # @default -- `""` (defaults to global.logging.level)
+  logLevel: debug
+
+  # -- Define user-defined context
+  ## For more information: https://argocd-notifications.readthedocs.io/en/stable/templates/#defining-user-defined-context
+  context: {}
+    # region: east
+    # environmentName: staging
+
+  secret:
+    # -- Whether helm chart creates notifications controller secret
+    create: true
+
+  # -- Configures notification services such as slack, email or custom webhook
+  # @default -- See [values.yaml]
+  ## For more information: https://argocd-notifications.readthedocs.io/en/stable/services/overview/
+  notifiers:
+    service.slack: |
+      token: $slack-token
+      username: "ArgoCD Notifications"
+      icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+
+  # -- [Node selector]
+  %{ for key, value in node_selector }
+  nodeSelector:
+    ${key}: ${value}
+  %{ endfor ~}
+  
+  # -- [Tolerations] for use with node taints
+  tolerations:
+  %{ for toleration in tolerations }
+    - key: ${toleration.key}
+      operator: ${toleration.operator}
+      value: ${toleration.value}
+      effect: ${toleration.effect}
+  %{ endfor ~}
+
+  cm:
+    # -- Whether helm chart creates notifications controller config map
+    create: true
+
+  # -- The notification template is used to generate the notification content
+  ## For more information: https://argocd-notifications.readthedocs.io/en/stable/templates/
+  templates:
+    template.app-created: |
+      email:
+        subject: Application {{.app.metadata.name}} has been created.
+      message: Application {{.app.metadata.name}} has been created.
+      teams:
+        title: Application {{.app.metadata.name}} has been created.
+    template.app-deleted: |
+      email:
+        subject: Application {{.app.metadata.name}} has been deleted.
+      message: Application {{.app.metadata.name}} has been deleted.
+      teams:
+        title: Application {{.app.metadata.name}} has been deleted.
+    template.chart-deployed: |
+      email:
+        subject: New version of an application {{.app.metadata.name}} is up and running.
+      message: |
+        {{if eq .serviceType "slack"}}:white_check_mark::white_check_mark:{{end}} Application `{{.app.metadata.name}}` is now running new version of deployments manifests.
+      slack:
+        attachments: |
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
+    template.chart-health-degraded: |
+      email:
+        subject: Application {{.app.metadata.name}} has *degraded*.
+      message: |
+        {{if eq .serviceType "slack"}}:exclamation::exclamation:{{end}} Application `{{.app.metadata.name}}` has degraded.
+        {{if eq .serviceType "slack"}}:point_right:{{end}} Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+        {{if eq .serviceType "slack"}}<@U02S7SCPWE7> <@U046QGK3BT5> <@U02N4ANDUUA>{{end}}
+      slack:
+        attachments: |-
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#E96D76",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
+    template.chart-sync-failed: |
+      email:
+        subject: Failed to sync application {{.app.metadata.name}}.
+      message: |
+        {{if eq .serviceType "slack"}}:exclamation::exclamation:{{end}} The sync operation of application `{{.app.metadata.name}}` has *failed* at {{ (call .time.Parse .app.status.operationState.finishedAt).Local.Format "2006-01-02T15:04:05Z07:00" }} with the following error: {{.app.status.operationState.message}}
+        {{if eq .serviceType "slack"}}:point_right:{{end}} Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+        {{if eq .serviceType "slack"}}<@U02S7SCPWE7> <@U046QGK3BT5> <@U02N4ANDUUA>{{end}}
+      slack:
+        attachments: |-
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#E96D76",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
+    template.chart-sync-running: |
+      email:
+        subject: Start syncing application {{.app.metadata.name}}.
+      message: |
+        {{if eq .serviceType "slack"}}:rocket::rocket:{{end}} The sync operation of application `{{.app.metadata.name}}` has *started* at {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}.
+        {{if eq .serviceType "slack"}}:point_right:{{end}} Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+      slack:
+        attachments: |-
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#0DADEA",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
+    template.chart-sync-status-unknown: |
+      email:
+        subject: Application {{.app.metadata.name}} sync status is 'Unknown'
+      message: |
+        {{if eq .serviceType "slack"}}:warning::warning:{{end}} Application `{{.app.metadata.name}}` sync is *Unknown*.
+        {{if eq .serviceType "slack"}}:point_right:{{end}} Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+        {{if eq .serviceType "slack"}}<@U02S7SCPWE7> <@U046QGK3BT5> <@U02N4ANDUUA>{{end}}
+        {{if ne .serviceType "slack"}}
+        {{range $c := .app.status.conditions}}
+            * {{$c.message}}
+        {{end}}
+        {{end}}
+      slack:
+        attachments: |-
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#f4c030",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
+    template.chart-sync-succeeded: |
+      email:
+        subject: Application {{.app.metadata.name}} has been successfully synced.
+      message: |
+        {{if eq .serviceType "slack"}}:white_check_mark::white_check_mark:{{end}} Application `{{.app.metadata.name}}` has been successfully synced at {{ (call .time.Parse .app.status.operationState.finishedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}.
+        {{if eq .serviceType "slack"}}:point_right:{{end}} Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+      slack:
+        attachments: |-
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#18be52",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
+
+  # -- The trigger defines the condition when the notification should be sent
+  ## For more information: https://argocd-notifications.readthedocs.io/en/stable/triggers/
+  triggers:
+    trigger.on-created: |
+      - description: Application is created.
+        oncePer: app.metadata.name
+        send:
+        - app-created
+        when: "true"
+    trigger.on-deleted: |
+      - description: Application is deleted.
+        oncePer: app.metadata.name
+        send:
+        - app-deleted
+        when: app.metadata.deletionTimestamp != nil
+    trigger.on-chart-deployed: |
+      - description: Application is synced and healthy. Triggered once per commit.
+        oncePer: app.status.sync.revision
+        send:
+        - chart-deployed
+        when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy' and app.spec.source.chart != nil
+    trigger.on-chart-health-degraded: |
+      - description: Application has degraded
+        send:
+        - chart-health-degraded
+        when: app.status.health.status == 'Degraded' and app.spec.source.chart != nil
+    trigger.on-chart-sync-failed: |
+      - description: Application syncing has failed
+        send:
+        - chart-sync-failed
+        when: app.status.operationState.phase in ['Error', 'Failed'] and app.spec.source.chart != nil
+    trigger.on-chart-sync-running: |
+      - description: Application is being synced
+        send:
+        - chart-sync-running
+        when: app.status.operationState.phase in ['Running'] and app.spec.source.chart != nil
+    trigger.on-chart-sync-succeeded: |
+      - description: Application syncing has succeeded
+        send:
+        - chart-sync-succeeded
+        when: app.status.operationState.phase in ['Succeeded'] and app.spec.source.chart != nil
+    trigger.on-chart-sync-status-unknown: |
+      - description: Application status is 'Unknown'
+        send:
+        - chart-sync-status-unknown
+        when: app.status.sync.status == 'Unknown' and app.spec.source.chart != nil
+
+    #
+    # For more information: https://argocd-notifications.readthedocs.io/en/stable/triggers/#default-triggers
+    defaultTriggers: |
+      - on-chart-deployed
+      - on-chart-health-degraded
+      - on-chart-sync-failed
+      - on-chart-sync-running
+      - on-chart-sync-succeeded
+
+  ## The optional bot component simplifies managing subscriptions
+  ## For more information: https://argocd-notifications.readthedocs.io/en/stable/bots/overview/
+  bots:
+    slack:
+      # -- Enable slack bot
+      ## You have to set secret.notifiers.slack.signingSecret
+      enabled: false
+
+      # -- [Tolerations] for use with node taints
+      tolerations: 
+      %{ for toleration in tolerations }
+        - key: ${toleration.key}
+          operator: ${toleration.operator}
+          value: ${toleration.value}
+          effect: ${toleration.effect}
+      %{ endfor ~}
+
+      # -- [Node selector]
+      %{ for key, value in node_selector }
+      nodeSelector:
+        ${key}: ${value}
+      %{ endfor ~}

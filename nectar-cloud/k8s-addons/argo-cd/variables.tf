@@ -1,5 +1,8 @@
-variable "eks_cluster_name" {
+variable "cluster_endpoint" {
   default = ""
+}
+variable "cluster_ca_certificate" {
+  type = string
 }
 
 variable "enabled" {
