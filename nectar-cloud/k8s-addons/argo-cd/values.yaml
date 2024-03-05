@@ -59,7 +59,12 @@ configs:
 
     # -- Timeout to refresh application data as well as target manifests cache
     timeout.hard.reconciliation: 0s
-
+      # staticClients:
+      #   - id: $argocd-sso-secret:github.clientID
+      #     name: Argo Workflow
+      #     redirectURIs:
+      #       - $argocd-sso-secret:workflow.callback_url
+      #     secretEnv: ARGO_WORKFLOWS_SSO_CLIENT_SECRET
     # Dex configuration
     dex.config: |
       connectors:
@@ -67,18 +72,29 @@ configs:
           id: github
           name: GitHub
           config:
-            clientID: $argocd-sso-secret:github.clientID
-            clientSecret: $argocd-sso-secret:github.clientSecret
+            clientID: $github.clientID
+            clientSecret: $github.clientSecret
             orgs:
-            - name: $argocd-sso-secret:github.org
-      staticClients:
-        - id: $argocd-sso-secret:github.clientID
-          name: Argo Workflow
-          redirectURIs:
-            - $argocd-sso-secret:workflow.callback_url
-          secretEnv: ARGO_WORKFLOWS_SSO_CLIENT_SECRET
+            - name: $github.org
+      # Argo CD sensitive data
+  credentialTemplates:
+    https-creds:
+      url: https://github.com/UQThesisENGG7817
+      password: ""
+      username: ""
 
-  repositories:
+  # Argo CD sensitive data
+  # Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets
+  secret:
+    # -- add additional secrets to be added to argocd-secret
+    ## Custom secrets. Useful for injecting SSO secrets into environment variables.
+    ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets
+    ## Note that all values must be non-empty.
+    extra:
+      github.org: UQThesisENGG7817
+
+          
+repositories:
     karpenter-oci-helm-repo:
       url: public.ecr.aws/karpenter/karpenter
       type: helm
@@ -109,7 +125,7 @@ configs:
 
   # Argo CD configuration parameters
   ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cmd-params-cm.yaml
-  params:
+params:
     # -- Annotations to be added to the argocd-cmd-params-cm ConfigMap
     annotations: {}
 
@@ -149,7 +165,7 @@ configs:
 
   # Argo CD RBAC policy configuration
   ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
-  rbac:
+rbac:
     # -- Create the argocd-rbac-cm configmap with ([Argo CD RBAC policy]) definitions.
     # If false, it is expected the configmap will be created by something else.
     # Argo CD will not work if there is no configmap created with the name above.
@@ -274,10 +290,12 @@ notfications:
   # @default -- See [values.yaml]
   ## For more information: https://argocd-notifications.readthedocs.io/en/stable/services/overview/
   notifiers:
-    service.slack: |
-      token: $slack-token
-      username: "ArgoCD Notifications"
-      icon: https://argo-cd.readthedocs.io/en/stable/assets/logo.png
+    service.email.gmail: |
+      username: "ArgoCD notification"
+      password: $email-password
+      host: smtp.gmail.com
+      port: 465
+      from: $email-username
   templates:
     template.app-created: |
       email:
@@ -291,6 +309,55 @@ notfications:
       message: Application {{.app.metadata.name}} has been deleted.
       teams:
         title: Application {{.app.metadata.name}} has been deleted.
+    template.chart-sync-running: |
+      email:
+        subject: Start syncing application {{.app.metadata.name}}.
+      message: |
+      :rocket::rocket:{{end}} The sync operation of application `{{.app.metadata.name}}` has *started* at {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}.
+      :point_right:{{end}} Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+      email:
+        attachments: |-
+          [{
+            "title": "{{ .app.metadata.name}}",
+            "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+            "color": "#0DADEA",
+            "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.sync.status}}",
+              "short": true
+            },
+            {
+              "title": "Environment",
+              "value": "{{ .context.environmentName }}",
+              "short": true
+            },
+            {
+              "title": "Chart Repo",
+              "value": "{{.app.spec.source.repoURL}}",
+              "short": true
+            },
+            {
+              "title": "Chart Name",
+              "value": "{{.app.spec.source.chart}}",
+              "short": true
+            },
+            {
+              "title": "Revision",
+              "value": "{{.app.status.sync.revision}}",
+              "short": true
+            }
+            {{range $index, $c := .app.status.conditions}}
+            {{if not $index}},{{end}}
+            {{if $index}},{{end}}
+            {
+              "title": "{{$c.type}}",
+              "value": "{{$c.message}}",
+              "short": true
+            }
+            {{end}}
+            ]
+          }]
     template.chart-deployed: |
       email:
         subject: New version of an application {{.app.metadata.name}} is up and running.
@@ -339,3 +406,48 @@ notfications:
             {{end}}
             ]
           }]
+  # -- The trigger defines the condition when the notification should be sent
+  ## For more information: https://argocd-notifications.readthedocs.io/en/stable/triggers/
+  triggers:
+    trigger.on-created: |
+      - description: Application is created.
+        oncePer: app.metadata.name
+        send:
+        - app-created
+        when: "true"
+    trigger.on-deleted: |
+      - description: Application is deleted.
+        oncePer: app.metadata.name
+        send:
+        - app-deleted
+        when: app.metadata.deletionTimestamp != nil
+    trigger.on-chart-deployed: |
+      - description: Application is synced and healthy. Triggered once per commit.
+        oncePer: app.status.sync.revision
+        send:
+        - chart-deployed
+        when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy' and app.spec.source.chart != nil
+    trigger.on-chart-health-degraded: |
+      - description: Application has degraded
+        send:
+        - chart-health-degraded
+        when: app.status.health.status == 'Degraded' and app.spec.source.chart != nil
+    trigger.on-chart-sync-running: |
+      - description: Application is being synced
+        send:
+        - chart-sync-running
+        when: app.status.operationState.phase in ['Running'] and app.spec.source.chart != nil
+    trigger.on-chart-sync-succeeded: |
+      - description: Application syncing has succeeded
+        send:
+        - chart-sync-succeeded
+        when: app.status.operationState.phase in ['Succeeded'] and app.spec.source.chart != nil
+
+    #
+    # For more information: https://argocd-notifications.readthedocs.io/en/stable/triggers/#default-triggers
+    defaultTriggers: |
+      - on-chart-deployed
+      - on-chart-health-degraded
+      - on-chart-sync-failed
+      - on-chart-sync-running
+      - on-chart-sync-succeeded
