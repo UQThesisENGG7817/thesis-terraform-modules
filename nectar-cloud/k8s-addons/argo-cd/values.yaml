@@ -315,8 +315,7 @@ notfications:
       message: |
       :rocket::rocket:{{end}} The sync operation of application `{{.app.metadata.name}}` has *started* at {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}.
       :point_right:{{end}} Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
-      email:
-        attachments: |-
+      attachments: |-
           [{
             "title": "{{ .app.metadata.name}}",
             "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
@@ -362,9 +361,8 @@ notfications:
       email:
         subject: New version of an application {{.app.metadata.name}} is up and running.
       message: |
-        {{if eq .serviceType "slack"}}:white_check_mark::white_check_mark:{{end}} Application `{{.app.metadata.name}}` is now running new version of deployments manifests.
-      slack:
-        attachments: |
+        :white_check_mark::white_check_mark:{{end}} Application `{{.app.metadata.name}}` is now running new version of deployments manifests.
+      attachments: |
           [{
             "title": "{{ .app.metadata.name}}",
             "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
