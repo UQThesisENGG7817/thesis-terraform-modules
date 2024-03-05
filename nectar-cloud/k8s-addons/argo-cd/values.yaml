@@ -36,7 +36,7 @@ configs:
     accounts.image-updater: apiKey
 
     # -- Argo CD's externally facing base URL (optional). Required when configuring SSO
-    url: "https://php1301.github.io/"
+    url: "https://php1301.github.io"
 
     # -- The name of tracking label used by Argo CD for resource pruning
     # @default -- Defaults to app.kubernetes.io/instance
@@ -216,27 +216,30 @@ server:
     # -- Enable support for Argo UI extensions
     enabled: true
 
-  # ingress:
-  #   # -- Enable an ingress resource for the Argo CD server
-  #   enabled: true
-  #   # -- Additional ingress annotations
-  #   annotations: # {}
-  #   # -- Additional ingress labels
-  #   labels: {}
-  #   # -- Defines which ingress controller will implement the resource
-  #   ingressClassName: alb
+  ingress:
+    # -- Enable an ingress resource for the Argo CD server
+    enabled: true
+    # -- Additional ingress annotations
+    annotations: # {}
+      #  nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      #  nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    # -- Additional ingress labels
+    labels: {}
+    # -- Defines which ingress controller will implement the resource
+    ingressClassName: nginx
 
     # -- List of ingress hosts
     ## Argo Ingress.
     ## Hostnames must be provided if Ingress is enabled.
     ## Secrets must be manually created in the namespace
-    # hosts:
+    hosts:
+      - cd.pinnamon.com
 
     # -- List of ingress paths
-    # paths:
-    #   - /
+    paths:
+      - /
     # -- Ingress path type. One of `Exact`, `Prefix` or `ImplementationSpecific`
-    # pathType: Prefix
+    pathType: Prefix
     # -- Additional ingress paths
     extraPaths:
       []
@@ -255,7 +258,9 @@ server:
 
     # -- Ingress TLS configuration
     tls:
-      []
+    - hosts:
+      - cd.pinnamon.com
+      secretName: pinnamon-ca-tsl
       # - secretName: your-certificate-name
       #   hosts:
       #     - argocd.example.com
