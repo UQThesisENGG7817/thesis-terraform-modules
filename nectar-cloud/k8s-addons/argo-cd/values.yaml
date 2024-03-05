@@ -197,15 +197,15 @@ rbac:
     # The scope value can be a string, or a list of strings.
     scopes: "[groups]"
 
-## Dex
-dex:
-  # -- Environment variables to pass to the Dex server
-  env:
-  - name: ARGO_WORKFLOWS_SSO_CLIENT_SECRET
-    valueFrom:
-      secretKeyRef:
-        key: github.clientSecret
-        name: argocd-sso-secret
+# ## Dex
+# dex:
+#   # -- Environment variables to pass to the Dex server
+#   env:
+#   - name: ARGO_WORKFLOWS_SSO_CLIENT_SECRET
+#     valueFrom:
+#       secretKeyRef:
+#         key: github.clientSecret
+#         name: argocd-sso-secret
 
 ## Server
 server:
