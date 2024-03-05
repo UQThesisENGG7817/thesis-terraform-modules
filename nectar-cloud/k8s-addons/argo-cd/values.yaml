@@ -36,7 +36,7 @@ configs:
     accounts.image-updater: apiKey
 
     # -- Argo CD's externally facing base URL (optional). Required when configuring SSO
-    url: "https://php1301.github.io"
+    url: "https://cd.pinnamon.com"
 
     # -- The name of tracking label used by Argo CD for resource pruning
     # @default -- Defaults to app.kubernetes.io/instance
