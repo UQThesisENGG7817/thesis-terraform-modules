@@ -92,6 +92,85 @@ configs:
     ## Note that all values must be non-empty.
     extra:
       github.org: UQThesisENGG7817
+  params:
+    # # -- Annotations to be added to the argocd-cmd-params-cm ConfigMap
+    # annotations: {}
+
+    # ## Generic parameters
+    # # -- Open-Telemetry collector address: (e.g. "otel-collector:4317")
+    # otlp.address: ''
+
+    # ## Controller Properties
+    # # -- Number of application status processors
+    # controller.status.processors: 20
+    # # -- Number of application operation processors
+    # controller.operation.processors: 10
+    # # -- Specifies timeout between application self heal attempts
+    # controller.self.heal.timeout.seconds: 5
+    # # -- Repo server RPC call timeout seconds.
+    # controller.repo.server.timeout.seconds: 60
+
+    ## Server properties
+    # -- Run server without TLS
+    server.insecure: true
+    # -- Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /
+    # server.basehref: /
+    # # -- Used if Argo CD is running behind reverse proxy under subpath different from /
+    # server.rootpath: ''
+    # # -- Directory path that contains additional static assets
+    # server.staticassets: /shared/app
+    # # -- Disable Argo CD RBAC for user authentication
+    # server.disable.auth: false
+    # # -- Enable GZIP compression
+    # server.enable.gzip: false
+    # # -- Set X-Frame-Options header in HTTP responses to value. To disable, set to "".
+    # server.x.frame.options: sameorigin
+
+    ## Repo-server properties
+    # -- Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
+    # reposerver.parallelism.limit: 0
+
+  # Argo CD RBAC policy configuration
+  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
+  rbac:
+    # -- Create the argocd-rbac-cm configmap with ([Argo CD RBAC policy]) definitions.
+    # If false, it is expected the configmap will be created by something else.
+    # Argo CD will not work if there is no configmap created with the name above.
+    # create: true
+
+    # -- Annotations to be added to argocd-rbac-cm configmap
+    annotations: {}
+
+    # -- The name of the default role which Argo CD will falls back to, when authorizing API requests (optional).
+    # If omitted or empty, users may be still be able to login, but will see no apps, projects, etc...
+    policy.default: 'role:readonly'
+
+    # -- File containing user-defined policies and role definitions.
+    # @default -- `''` (See [values.yaml])
+    # policy.csv: ''
+    # Policy rules are in the form:
+    #  p, subject, resource, action, object, effect
+    # Role definitions and bindings are in the form:
+    #  g, subject, inherited-subject
+    policy.csv: |
+      p, role:org-admin, applications, *, */*, allow
+      p, role:org-admin, clusters, get, *, allow
+      p, role:org-admin, repositories, get, *, allow
+      p, role:org-admin, repositories, create, *, allow
+      p, role:org-admin, repositories, update, *, allow
+      p, role:org-admin, repositories, delete, *, allow
+      p, role:org-admin, projects, get, *, allow
+      p, role:org-admin, projects, create, *, allow
+      p, role:org-admin, projects, update, *, allow
+      p, role:org-admin, projects, delete, *, allow
+      p, role:org-admin, logs, get, *, allow
+      p, role:org-admin, exec, create, */*, allow
+
+      g, UQThesisENGG7817:devops-team, role:org-admin
+
+    # -- OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
+    # The scope value can be a string, or a list of strings.
+    scopes: "[groups]"
 
           
 repositories:
@@ -125,77 +204,6 @@ repositories:
 
   # Argo CD configuration parameters
   ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-cmd-params-cm.yaml
-params:
-    # -- Annotations to be added to the argocd-cmd-params-cm ConfigMap
-    annotations: {}
-
-    ## Generic parameters
-    # -- Open-Telemetry collector address: (e.g. "otel-collector:4317")
-    otlp.address: ''
-
-    ## Controller Properties
-    # -- Number of application status processors
-    controller.status.processors: 20
-    # -- Number of application operation processors
-    controller.operation.processors: 10
-    # -- Specifies timeout between application self heal attempts
-    controller.self.heal.timeout.seconds: 5
-    # -- Repo server RPC call timeout seconds.
-    controller.repo.server.timeout.seconds: 60
-
-    ## Server properties
-    # -- Run server without TLS
-    server.insecure: true
-    # -- Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /
-    server.basehref: /
-    # -- Used if Argo CD is running behind reverse proxy under subpath different from /
-    server.rootpath: ''
-    # -- Directory path that contains additional static assets
-    server.staticassets: /shared/app
-    # -- Disable Argo CD RBAC for user authentication
-    server.disable.auth: false
-    # -- Enable GZIP compression
-    server.enable.gzip: false
-    # -- Set X-Frame-Options header in HTTP responses to value. To disable, set to "".
-    server.x.frame.options: sameorigin
-
-    ## Repo-server properties
-    # -- Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
-    reposerver.parallelism.limit: 0
-
-  # Argo CD RBAC policy configuration
-  ## Ref: https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
-rbac:
-    # -- Create the argocd-rbac-cm configmap with ([Argo CD RBAC policy]) definitions.
-    # If false, it is expected the configmap will be created by something else.
-    # Argo CD will not work if there is no configmap created with the name above.
-    create: true
-
-    # -- Annotations to be added to argocd-rbac-cm configmap
-    annotations: {}
-
-    # -- The name of the default role which Argo CD will falls back to, when authorizing API requests (optional).
-    # If omitted or empty, users may be still be able to login, but will see no apps, projects, etc...
-    policy.default: 'role:readonly'
-
-    # -- File containing user-defined policies and role definitions.
-    # @default -- `''` (See [values.yaml])
-    # policy.csv: ''
-    # Policy rules are in the form:
-    #  p, subject, resource, action, object, effect
-    # Role definitions and bindings are in the form:
-    #  g, subject, inherited-subject
-    policy.csv: |
-      p, role:org-admin, *, *, *, allow
-      g, uq-thesis:php1301, role:org-admin
-      
-      p, role:image-updater, applications, get, */*, allow
-      p, role:image-updater, applications, update, */*, allow
-      g, image-updater, role:image-updater
-
-    # -- OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
-    # The scope value can be a string, or a list of strings.
-    scopes: "[groups]"
 
 # ## Dex
 # dex:
