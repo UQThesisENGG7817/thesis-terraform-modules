@@ -136,7 +136,7 @@ configs:
     # -- Create the argocd-rbac-cm configmap with ([Argo CD RBAC policy]) definitions.
     # If false, it is expected the configmap will be created by something else.
     # Argo CD will not work if there is no configmap created with the name above.
-    # create: true
+    create: true
 
     # -- Annotations to be added to argocd-rbac-cm configmap
     annotations: {}
