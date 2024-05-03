@@ -270,7 +270,7 @@ server:
     tls:
     - hosts:
       - cd.pinnamon.com
-      secretName: cluster-ca-tsl
+      secretName: argo-ca-tls
       # - secretName: your-certificate-name
       #   hosts:
       #     - argocd.example.com
