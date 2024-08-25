@@ -223,7 +223,14 @@ server:
   extensions:
     # -- Enable support for Argo UI extensions
     enabled: true
-
+  metrics:
+    # -- Deploy metrics service
+    enabled: true
+    serviceMonitor:
+      # -- Enable a prometheus ServiceMonitor
+      enabled: true
+      # -- Prometheus ServiceMonitor namespace
+      namespace: "observability"
   ingress:
     # -- Enable an ingress resource for the Argo CD server
     enabled: true
